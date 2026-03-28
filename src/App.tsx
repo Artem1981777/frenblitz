@@ -63,6 +63,53 @@ export default function App() {
 
   async function socialLogin(p: string) {
     setModal(false)
+    if (p === "Keplr") {
+      const keplr = (window as any).keplr
+      if (keplr) {
+        try {
+          // Add Initia chain to Keplr
+          await keplr.experimentalSuggestChain({
+            chainId: "interwoven-1",
+            chainName: "Initia",
+            rpc: "https://rpc.initia.xyz",
+            rest: "https://lcd.initia.xyz",
+            bip44: { coinType: 118 },
+            bech32Config: {
+              bech32PrefixAccAddr: "init",
+              bech32PrefixAccPub: "initpub",
+              bech32PrefixValAddr: "initvaloper",
+              bech32PrefixValPub: "initvaloperpub",
+              bech32PrefixConsAddr: "initvalcons",
+              bech32PrefixConsPub: "initvalconspub"
+            },
+            currencies: [{ coinDenom: "INIT", coinMinimalDenom: "uinit", coinDecimals: 6 }],
+            feeCurrencies: [{ coinDenom: "INIT", coinMinimalDenom: "uinit", coinDecimals: 6, gasPriceStep: { low: 0.015, average: 0.025, high: 0.04 } }],
+            stakeCurrency: { coinDenom: "INIT", coinMinimalDenom: "uinit", coinDecimals: 6 }
+          })
+          await keplr.enable("interwoven-1")
+          const offlineSigner = keplr.getOfflineSigner("interwoven-1")
+          const accounts = await offlineSigner.getAccounts()
+          const addr = accounts[0].address
+
+          // Get real balance from Initia LCD
+          try {
+            const res = await fetch("https://lcd.initia.xyz/cosmos/bank/v1beta1/balances/" + addr)
+            const data = await res.json()
+            const uinit = data.balances?.find((b: any) => b.denom === "uinit")
+            const balance = uinit ? +(parseInt(uinit.amount) / 1e6).toFixed(4) : 0
+            setWallet({ connected:true, address:addr.slice(0,8)+"..."+addr.slice(-4), balance })
+          } catch {
+            setWallet({ connected:true, address:addr.slice(0,8)+"..."+addr.slice(-4), balance:0 })
+          }
+          toast("Connected to Initia via Keplr!")
+          return
+        } catch(e) {
+          toast("Keplr connection failed — using demo")
+        }
+      } else {
+        toast("Install Keplr wallet!")
+      }
+    }
     await new Promise(r=>setTimeout(r,600))
     const addr = "init1"+Math.random().toString(36).slice(2,12)+"x"
     setWallet({ connected:true, address:addr, balance:+(Math.random()*500+50).toFixed(2) })
